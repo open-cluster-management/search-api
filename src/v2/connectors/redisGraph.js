@@ -487,6 +487,31 @@ export default class RedisGraphConnector {
     return this.executeQuery({ query, removePrefix: false, queryName: 'runChannelClustersQuery' });
   }
 
+  /* **********************
+  * Overview Page Queries
+  ************************* */
+  async runOverviewClustersQuery() {
+    const { withClause, whereClause } = await this.createWhereClause([], ['c']);
+    const query = `${withClause} MATCH (c:Cluster) ${whereClause} RETURN DISTINCT count(c)`;
+    const result = await this.executeQuery({ query, removePrefix: false });
+    console.log('runOverviewClustersQuery - result:', result); // eslint-ignore-line no-console
+    return (result && result['count(n)']) || 0;
+  }
+
+  async resolveNonCompliantClusterCount() {
+    // const { withClause, whereClause } = await this.createWhereClause([], ['p', 'c']);
+    // eslint-disable-next-line
+    // const query = `${withClause} MATCH (p:Policy {compliant:'NonCompliant})-[]-(c:Cluster) ${whereClause === '' ? 'WHERE' : `${whereClause} AND`} exists(p._hubClusterResource)=false RETURN DISTINCT count(c)`;
+    const query = `MATCH (p:Policy {compliant:'NonCompliant})-[]->(c:Cluster) RETURN DISTINCT count(c)`; // eslint-disable-line
+    const result = await this.executeQuery({ query, removePrefix: false });
+    console.log('resolveNonCompliantClusterCount - result:', result); // eslint-ignore-line no-console
+    return (result && result['count(n)']) || 0;
+    // if (result.hasNext && result.hasNext() === true) {
+    //   return result.next().get('count(n)');
+    // }
+    // return 0;
+  }
+
   /**
    * TODO: For users less than clusterAdmin we we do not currently handle non-namespaced resources
    * For users with access to >0 namespaces we create an RBAC string for resources user has access
@@ -497,8 +522,6 @@ export default class RedisGraphConnector {
     // logger.info('runSearchQuery()', filters);
     const startTime = Date.now();
     if (this.rbac.length > 0) {
-      // RedisGraph 2.0 does support an array as value. Therefore, we don't need to
-      // encode labels in a single string
       let limitClause = '';
       if (limit > 0) {
         limitClause = querySkipIdx > -1
@@ -518,8 +541,6 @@ export default class RedisGraphConnector {
     // logger.info('runSearchQueryCountOnly()', filters);
 
     if (this.rbac.length > 0) {
-      // RedisGraph 2.0 does support an array as value. Therefore, we don't need to
-      // encode labels in a single string
       const { withClause, whereClause } = await this.createWhereClause(filters, ['n']);
       const startTime = Date.now();
       const result = await this.g.query(`${withClause} MATCH (n) ${whereClause} RETURN count(n)`);
